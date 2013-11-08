@@ -34,7 +34,11 @@ class gui
 	
 	public function Footer()
 	{
-		echo '<br><center><small>OpenVoucher installer V '.$this->version.'</small></center></body></html>';
+		if(isset($this->version))
+		{
+			echo '<br><center><small>OpenVoucher installer V '.$this->version.'</small></center>';
+		}
+		echo '</body></html>';
 	}
 }
 ?>

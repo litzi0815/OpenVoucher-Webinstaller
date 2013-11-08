@@ -3,6 +3,7 @@ if($_GET['installer']=='')
 {
 	require('gui.php');
 	$g = new gui();
+	$g->Header();
 	echo 'Welcome to OpenVoucher installer.<br><br>
 	Before you proceed, make sure that you have at least two interfaces configured on your machine. The internal interface, where the guests are connected to, <b>must</b> have a static IPv4 address. 
 	<br><br>
