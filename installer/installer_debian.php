@@ -234,7 +234,7 @@ class InstallerDebian
 		exec('tar -xf /var/tmp/ov_latest.tar.gz -C '.$_SESSION['tempdir'],$buffer,$exitcode);
 		if($exitcode==0)
 		{
-			shell_exec('mv '.$_SESSION['tempdir'].'src '.$_SESSION['wwwroot']);
+			shell_exec('mv '.$_SESSION['tempdir'].'src/* '.$_SESSION['wwwroot']);
 			echo 'The software has been decompressed.';
 		} else {
 			echo 'Couldn\'t decompress the software. Please do it manually, then click &quot;Next&quot;.';
@@ -266,7 +266,12 @@ class InstallerDebian
 		define(\'INTERFACES_EXTERNAL\',\''.$_SESSION['if-external'].'\');
 		?>';
 		
-		shell_exec('echo '.$configfile.' > '.$_SESSION['wwwroot'].'includes/config.php');
+		//shell_exec('echo '.$configfile.' > '.$_SESSION['wwwroot'].'includes/config.php');
+		
+		$handle=fopen($_SESSION['wwwroot'].'includes/config.php','w');
+		fwrite($handle,$configfile);
+		fclose($handle);
+		
 		echo 'Config saved.<br><br>';
 		
 		if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host.'].' -u '.$_SESSION['mysql_user.'].' -p'.$_SESSION['mysql_pwd.'].' < '.$_SESSION['tempdir.'].'database/tables.sql'))
