@@ -24,6 +24,7 @@ class InstallerDebian
 		if($this->step==5) $this->CheckDownload();
 		if($this->step==6) $this->Decompress();
 		if($this->step==7) $this->Configure();
+		if($this->step==8) $this->Finished();
 		
 		if($this->step=='reset') $this->ResetAll();
 	}
@@ -270,9 +271,36 @@ class InstallerDebian
 		
 		if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host.'].' -u '.$_SESSION['mysql_user.'].' -p'.$_SESSION['mysql_pwd.'].' < '.$_SESSION['tempdir.'].'database/tables.sql'))
 		{
-			// TODO
+			echo 'The MySQL database has been installed successfully.';
+		} else {
+			echo 'An error occured while installing the database. Please run database/tables.sql manually.';
 		}
-		
+		echo '<br><br><form action="'.$_SERVER['PHP_SELF'].'" method="get">
+		<input type="hidden" name="step" value="8">
+		<input type="submit" class="formstyle" value="Next">
+		</form>';
+		$this->g->Footer();
+	}
+	
+	private function Finished()
+	{
+		$this->g->Header();
+		echo 'The installation is finished. However, there are still some tasks that require root privileges or manual configuration. Please complete the following steps:
+		<br>
+		<ul>
+			<li>Install the cronjob(s) described in '.$_SESSION['tempdir'].'cronjobs/cronjobs.txt</li>
+			<ul>
+				<li>On the shell, change to user '.$_SESSION['apacheuser'].' and run &quot;crontab -e&quot;</li>
+				<li>Insert the cronjob(s) as described in cronjobs.txt</li>
+				<li>Do <b>not</b> run this cronjob(s) by root!</li>
+				<li>In &quot;'.$_SESSION['wwwroot'].'localscripts/refresh_permissions.sh&quot;, make sure the path used by cd is correct</li>
+			</ul>
+			<li>Enable Debian\'s routing functionality</li>
+			<ul>
+				<li>Open the file &quot;/etc/sysctl.conf&quot; and uncomment the line &quot;net.ipv4.ip_forward=1&quot;</li>
+			</ul>
+			<li>Reboot the server</li>
+		</ul>';
 		$this->g->Footer();
 	}
 }
