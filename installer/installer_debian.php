@@ -20,9 +20,10 @@ class InstallerDebian
 		if($this->step==1) $this->FormSysdata();
 		if($this->step==2) $this->ProcessSysdata();
 		if($this->step==3) $this->CheckRequirements();
-		if($this->step==4) $this->StartDownload();
+		if($this->step==4) $this->SaveMySQLStartDownload();
 		if($this->step==5) $this->CheckDownload();
 		if($this->step==6) $this->Decompress();
+		if($this->step==7) $this->Configure();
 		
 		if($this->step=='reset') $this->ResetAll();
 	}
@@ -102,7 +103,11 @@ class InstallerDebian
 		Path to www-root: <input type="text" name="wwwroot" class="formstyle" size="20" value="/var/www/"><br><br>
 		Which interface are the guests connected to? <input type="text" name="if-internal" class="formstyle" size="20" value="eth0"><br>
 		Which interface is connected to the internet? <input type="text" name="if-external" class="formstyle" size="20" value="eth1"><br>
-		What\'s your internal IP (guest interface)? <input type="text" name="ip-internal" class="formstyle" size="20" value="10.0.0.1"><br><br>
+		What\'s your internal IP (guest interface)? <input type="text" name="ip-internal" class="formstyle" size="20" value="10.0.0.1"><br>
+		Which authentication type do you want to use? <input type="radio" name="auth" value="mac-only" class="formstyle" checked> MAC only 
+		<input type="radio" name="auth" value="mac-ipv4" class="formstyle"> MAC and IPv4 fallback 
+		<input type="radio" name="auth" value="ipv4-only" class="formstyle"> IPv4 only
+		<br><br>
 		<input type="submit" value="Next" class="formstyle">
 		</form>';
 		$this->g->Footer();
@@ -111,13 +116,13 @@ class InstallerDebian
 	private function ProcessSysdata()
 	{
 		$this->g->Header();
-		if(!$this->CheckPost(array('apacheuser','iptables','arp','tempdir','wwwroot','if-internal','if-external','ip-internal')))
+		if(!$this->CheckPost(array('apacheuser','iptables','arp','tempdir','wwwroot','if-internal','if-external','ip-internal','auth')))
 		{
 			echo 'Not all required fields were filled out.';
 			$this->g->Footer();
 			die();
 		}
-		$this->WritePostToSession(array('apacheuser','iptables','arp','tempdir','wwwroot','if-internal','if-external','ip-internal'));
+		$this->WritePostToSession(array('apacheuser','iptables','arp','tempdir','wwwroot','if-internal','if-external','ip-internal','auth'));
 		
 		echo 'Before we proceed, please make sure you have the following requirements installed:
 		<br>
@@ -186,10 +191,18 @@ class InstallerDebian
 		$this->g->Footer();
 	}
 	
-	private function StartDownload()
+	private function SaveMySQLStartDownload()
 	{
+		if(!$this->CheckPost(array('mysql_host','mysql_user','mysql_pwd','mysql_db')))
+		{
+			echo 'Not all required fields were filled out.';
+			$this->g->Footer();
+			die();
+		}
+		$this->WritePostToSession(array('mysql_host','mysql_user','mysql_pwd','mysql_db'));
+		
 		$this->g->Header();
-		shell_exec('wget -O /var/tmp/ov_latest.tar.gz http://sourceforge.net/projects/openvoucher/files/latest/download?source=files > /dev/null 2>&1 &');
+		shell_exec('wget -O '.$_SESSION['tempdir'].'ov_latest.tar.gz http://sourceforge.net/projects/openvoucher/files/latest/download?source=files > /dev/null 2>&1 &');
 		echo 'The download has been started.<br><br>
 		<form action="'.$_SERVER['PHP_SELF'].'" method="get">
 		<input type="hidden" name="step" value="5">
@@ -217,9 +230,10 @@ class InstallerDebian
 	private function Decompress()
 	{
 		$this->g->Header();
-		exec('tar -xf /var/tmp/ov_latest.tar.gz -C '.$_SESSION['wwwroot'],$buffer,$exitcode);
+		exec('tar -xf /var/tmp/ov_latest.tar.gz -C '.$_SESSION['tempdir'],$buffer,$exitcode);
 		if($exitcode==0)
 		{
+			shell_exec('mv '.$_SESSION['tempdir'].'src '.$_SESSION['wwwroot']);
 			echo 'The software has been decompressed.';
 		} else {
 			echo 'Couldn\'t decompress the software. Please do it manually, then click &quot;Next&quot;.';
@@ -228,6 +242,37 @@ class InstallerDebian
 		<input type="hidden" name="step" value="7">
 		<input type="submit" class="formstyle" value="Next">
 		</form>';
+		$this->g->Footer();
+	}
+	
+	private function Configure()
+	{
+		$this->g->Header();
+		
+		$configfile='<?php
+		define(\'MYSQL_HOST\',\''.$_SESSION['mysql_host'].'\');
+		define(\'MYSQL_USER\',\''.$_SESSION['mysql_user'].'\');
+		define(\'MYSQL_PWD\',\''.$_SESSION['mysql_pwd'].'\');
+		define(\'MYSQL_DB\',\'openvoucher\');
+
+		define(\'SYSTEM_IPTABLES\',\''.$_SESSION['iptables'].'\');
+		define(\'SYSTEM_ARP\',\''.$_SESSION['arp'].'\');
+		define(\'SYSTEM_TMPDIR\',\''.$_SESSION['tempdir'].'\');
+		define(\'SYSTEM_AUTHENTICATION\',\''.$_SESSION['auth'].'\');
+
+		define(\'INTERFACES_INTERNAL\',\''.$_SESSION['if-internal'].'\');
+		define(\'INTERFACES_INTERNAL_IP\',\''.$_SESSION['ip-internal'].'\');
+		define(\'INTERFACES_EXTERNAL\',\''.$_SESSION['if-external'].'\');
+		?>';
+		
+		shell_exec('echo '.$configfile.' > '.$_SESSION['wwwroot'].'includes/config.php');
+		echo 'Config saved.<br><br>';
+		
+		if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host.'].' -u '.$_SESSION['mysql_user.'].' -p'.$_SESSION['mysql_pwd.'].' < '.$_SESSION['tempdir.'].'database/tables.sql'))
+		{
+			// TODO
+		}
+		
 		$this->g->Footer();
 	}
 }
