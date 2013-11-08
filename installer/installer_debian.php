@@ -9,7 +9,7 @@ class InstallerDebian
 	{
 		define('INSTALLERVERSION','0.100');
 		session_start();
-		$g = new gui(INSTALLERVERSION);
+		$this->g = new gui(INSTALLERVERSION);
 		if(trim($_GET['step'])=='' || (!is_numeric($_GET['step']) && $_GET['step']!='reset'))
 		{
 			$this->step=1;
@@ -29,9 +29,10 @@ class InstallerDebian
 	
 	private function ResetAll()
 	{
+		$this->g->Header();
 		$_SESSION=array();
 		echo 'All data has been reset.<br><br><a href="'.$_SERVER['PHP_SELF'].'">Go back</a>';
-		$g->Footer();
+		$this->g->Footer();
 		die();
 	}
 	
@@ -53,7 +54,7 @@ class InstallerDebian
 	
 	private function GetExitCode($command)
 	{
-		exec($command,NULL,$exitcode);
+		exec($command,$buffer,$exitcode);
 		return $exitcode;
 	}
 	
@@ -92,7 +93,7 @@ class InstallerDebian
 	
 	private function FormSysdata()
 	{
-		$g->Header();
+		$this->g->Header();
 		echo '<form action="'.$_SERVER['PHP_SELF'].'?step=2" method="post">
 		On which user is apache running? <input type="text" name="apacheuser" class="formstyle" size="20" value="www-data"><br>
 		Path to iptables: <input type="text" name="iptables" class="formstyle" size="20" value="/sbin/iptables"><br>
@@ -102,18 +103,18 @@ class InstallerDebian
 		Which interface are the guests connected to? <input type="text" name="if-internal" class="formstyle" size="20" value="eth0"><br>
 		Which interface is connected to the internet? <input type="text" name="if-external" class="formstyle" size="20" value="eth1"><br>
 		What\'s your internal IP (guest interface)? <input type="text" name="ip-internal" class="formstyle" size="20" value="10.0.0.1"><br><br>
-		<input type="submit" value="Next">
+		<input type="submit" value="Next" class="formstyle">
 		</form>';
-		$g->Footer();
+		$this->g->Footer();
 	}
 	
 	private function ProcessSysdata()
 	{
-		$g->Header();
+		$this->g->Header();
 		if(!$this->CheckPost(array('apacheuser','iptables','arp','tempdir','wwwroot','if-internal','if-external','ip-internal')))
 		{
 			echo 'Not all required fields were filled out.';
-			$g->Footer();
+			$this->g->Footer();
 			die();
 		}
 		$this->WritePostToSession(array('apacheuser','iptables','arp','tempdir','wwwroot','if-internal','if-external','ip-internal'));
@@ -138,40 +139,40 @@ class InstallerDebian
 		<input type="hidden" name="step" value="3">
 		<input type="submit" class="formstyle" value="Next">
 		</form>';
-		$g->Footer();
+		$this->g->Footer();
 	}
 	
 	private function CheckRequirements()
 	{
-		$g->Header();
+		$this->g->Header();
 		if(!$this->CommandExists('sudo'))
 		{
 			echo 'sudo wasn\'t found. Make sure that the user running your webserver can run it using the command &quot;sudo&quot.';
-			$g->Footer();
+			$this->g->Footer();
 			die();
 		}
 		if(!$this->CommandExists('wget'))
 		{
 			echo 'wget wasn\'t found. Make sure that the user running your webserver can run it.';
-			$g->Footer();
+			$this->g->Footer();
 			die();
 		}
 		if(!$this->CommandExists($_SESSION['iptables']))
 		{
 			echo 'iptables wasn\'t found. Make sure that the user running your webserver can run it using the command &quot;'.$_SESSION['iptables'].'&quot.';
-			$g->Footer();
+			$this->g->Footer();
 			die();
 		}
 		if(!$this->PathWritable($_SESSION['wwwroot']))
 		{
 			echo 'Can\'t write to '.$_SESSION['wwwroot'].'. Please check your permissions.';
-			$g->Footer();
+			$this->g->Footer();
 			die();
 		}
-		if($this->GetExitCode($_SESSION['iptables'].' --list')!=0)
+		if($this->GetExitCode('sudo '.$_SESSION['iptables'].' --list')!=0)
 		{
 			echo 'Can\'t run iptables. Make sure that the user running your webserver can run it using the command &quot;'.$_SESSION['iptables'].'&quot.';
-			$g->Footer();
+			$this->g->Footer();
 			die();
 		}
 		echo 'Plase specify your MySQL settings now.<br><br>
@@ -182,21 +183,24 @@ class InstallerDebian
 		Database: <input type="text" name="mysql_db" size="20" class="formstyle" value="openvoucher"><br><br>
 		<input type="submit" value="Next" class="formstyle">
 		</form>';
-		$g->Footer();
+		$this->g->Footer();
 	}
 	
 	private function StartDownload()
 	{
-		shell_exec('wget -O /var/tmp/ov_latest.tar.gz http://sourceforge.net/projects/openvoucher/files/latest/download?source=files &');
+		$this->g->Header();
+		shell_exec('wget -O /var/tmp/ov_latest.tar.gz http://sourceforge.net/projects/openvoucher/files/latest/download?source=files > /dev/null 2>&1 &');
 		echo 'The download has been started.<br><br>
 		<form action="'.$_SERVER['PHP_SELF'].'" method="get">
 		<input type="hidden" name="step" value="5">
 		<input type="submit" class="formstyle" value="Next">
 		</form>';
+		$this->g->Footer();
 	}
 	
 	private function CheckDownload()
 	{
+		$this->g->Header();
 		if(preg_match("/wget/i",shell_exec('ps')))
 		{
 			echo 'It seems that the download hasn\'t finished yet. Please <a href="'.$_SERVER['PHP_SELF'].'?step=5">reload</a> to see if it has finished now.';
@@ -207,11 +211,13 @@ class InstallerDebian
 			<input type="submit" class="formstyle" value="Next">
 			</form>';
 		}
+		$this->g->Footer();
 	}
 	
 	private function Decompress()
 	{
-		exec('tar -xf -C '.$_SESSION['wwwroot'].' /var/tmp/ov_latest.tar.gz',NULL,$exitcode);
+		$this->g->Header();
+		exec('tar -xf /var/tmp/ov_latest.tar.gz -C '.$_SESSION['wwwroot'],$buffer,$exitcode);
 		if($exitcode==0)
 		{
 			echo 'The software has been decompressed.';
@@ -222,6 +228,7 @@ class InstallerDebian
 		<input type="hidden" name="step" value="7">
 		<input type="submit" class="formstyle" value="Next">
 		</form>';
+		$this->g->Footer();
 	}
 }
 ?>
