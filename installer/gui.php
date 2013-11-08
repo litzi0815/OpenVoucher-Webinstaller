@@ -1,6 +1,12 @@
 <?php
 class gui
 {
+	private $version;
+	
+	function __construct($versionnumber)
+	{
+		$this->version=$versionnumber;
+	}
 	public function Header()
 	{
 		echo '<html>
@@ -28,7 +34,7 @@ class gui
 	
 	public function Footer()
 	{
-		echo '</body></html>';
+		echo '<br><center><small>OpenVoucher installer V '.$this->version.'</small></center></body></html>';
 	}
 }
 ?>

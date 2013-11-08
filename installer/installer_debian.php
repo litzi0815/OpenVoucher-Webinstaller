@@ -7,8 +7,9 @@ class InstallerDebian
 	
 	function __construct()
 	{
+		define('INSTALLERVERSION','0.100');
 		session_start();
-		$g = new gui();
+		$g = new gui(INSTALLERVERSION);
 		if(trim($_GET['step'])=='' || (!is_numeric($_GET['step']) && $_GET['step']!='reset'))
 		{
 			$this->step=1;
@@ -18,6 +19,7 @@ class InstallerDebian
 		
 		if($this->step==1) $this->FormSysdata();
 		if($this->step==2) $this->ProcessSysdata();
+		if($this->step==3) $this->CheckRequirements();
 		
 		if($this->step=='reset') $this->ResetAll();
 	}
@@ -44,6 +46,22 @@ class InstallerDebian
 			}
 		}
 		return $checkres;
+	}
+	
+	private function GetExitCode($command)
+	{
+		exec($command,NULL,$exitcode);
+		return $exitcode;
+	}
+	
+	private function CommandExists($command)
+	{
+		if($this->GetExitCode($command)==127)
+		{
+			return false;
+		} else {
+			return true;
+		}
 	}
 	
 	private function WritePostToSession($elements)
@@ -102,6 +120,30 @@ class InstallerDebian
 		<input type="submit" class="formstyle" value="Next">
 		</form>';
 		$g->Footer();
+	}
+	
+	private function CheckRequirements()
+	{
+		$g->Header();
+		if(!$this->CommandExists('sudo'))
+		{
+			echo 'sudo wasn\'t found. Make sure that the user running your webserver can run it using the command &quot;sudo&quot.';
+			$g->Footer();
+			die();
+		}
+		if(!$this->CommandExists($_SESSION['iptables']))
+		{
+			echo 'iptables wasn\'t found. Make sure that the user running your webserver can run it using the command &quot;'.$_SESSION['iptables'].'&quot.';
+			$g->Footer();
+			die();
+		}
+		if($this->GetExitCode($_SESSION['iptables'].' --list')!=0)
+		{
+			echo 'Can\'t run iptables. Make sure that the user running your webserver can run it using the command &quot;'.$_SESSION['iptables'].'&quot.';
+			$g->Footer();
+			die();
+		}
+		
 	}
 }
 ?>
