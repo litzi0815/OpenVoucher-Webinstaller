@@ -20,6 +20,9 @@ class InstallerDebian
 		if($this->step==1) $this->FormSysdata();
 		if($this->step==2) $this->ProcessSysdata();
 		if($this->step==3) $this->CheckRequirements();
+		if($this->step==4) $this->StartDownload();
+		if($this->step==5) $this->CheckDownload();
+		if($this->step==6) $this->Decompress();
 		
 		if($this->step=='reset') $this->ResetAll();
 	}
@@ -64,6 +67,21 @@ class InstallerDebian
 		}
 	}
 	
+	private function PathWritable($path)
+	{
+		if($this->GetExitCode('touch '.$path.'test.tmp')==0)
+		{
+			if($this->GetExitCode('rm '.$path.'test.tmp')==0)
+			{
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	}
+	
 	private function WritePostToSession($elements)
 	{
 		foreach($elements as $element)
@@ -105,6 +123,7 @@ class InstallerDebian
 		<ul>
 		<li>sudo</li>
 		<li>iptables</li>
+		<li>wget (for downloading the latest version)</li>
 		<li>A running MySQL server (on this or another machine)</li>
 		</ul>
 		<br>
@@ -131,9 +150,21 @@ class InstallerDebian
 			$g->Footer();
 			die();
 		}
+		if(!$this->CommandExists('wget'))
+		{
+			echo 'wget wasn\'t found. Make sure that the user running your webserver can run it.';
+			$g->Footer();
+			die();
+		}
 		if(!$this->CommandExists($_SESSION['iptables']))
 		{
 			echo 'iptables wasn\'t found. Make sure that the user running your webserver can run it using the command &quot;'.$_SESSION['iptables'].'&quot.';
+			$g->Footer();
+			die();
+		}
+		if(!$this->PathWritable($_SESSION['wwwroot']))
+		{
+			echo 'Can\'t write to '.$_SESSION['wwwroot'].'. Please check your permissions.';
 			$g->Footer();
 			die();
 		}
@@ -143,7 +174,54 @@ class InstallerDebian
 			$g->Footer();
 			die();
 		}
-		
+		echo 'Plase specify your MySQL settings now.<br><br>
+		<form action="'.$_SERVER['PHP_SELF'].'?step=4" method="post">
+		Hostname: <input type="text" name="mysql_host" size="20" class="formstyle" value="localhost"><br>
+		Username: <input type="text" name="mysql_user" size="20" class="formstyle"><br>
+		Password: <input type="password" name="mysql_pwd" size="20" class="formstyle"><br>
+		Database: <input type="text" name="mysql_db" size="20" class="formstyle" value="openvoucher"><br><br>
+		<input type="submit" value="Next" class="formstyle">
+		</form>';
+		$g->Footer();
+	}
+	
+	private function StartDownload()
+	{
+		shell_exec('wget -O /var/tmp/ov_latest.tar.gz http://sourceforge.net/projects/openvoucher/files/latest/download?source=files &');
+		echo 'The download has been started.<br><br>
+		<form action="'.$_SERVER['PHP_SELF'].'" method="get">
+		<input type="hidden" name="step" value="5">
+		<input type="submit" class="formstyle" value="Next">
+		</form>';
+	}
+	
+	private function CheckDownload()
+	{
+		if(preg_match("/wget/i",shell_exec('ps')))
+		{
+			echo 'It seems that the download hasn\'t finished yet. Please <a href="'.$_SERVER['PHP_SELF'].'?step=5">reload</a> to see if it has finished now.';
+		} else {
+			echo 'The download has finished. Click &quot;Next&quot; to decompress.<br><br>
+			<form action="'.$_SERVER['PHP_SELF'].'" method="get">
+			<input type="hidden" name="step" value="6">
+			<input type="submit" class="formstyle" value="Next">
+			</form>';
+		}
+	}
+	
+	private function Decompress()
+	{
+		exec('tar -xf -C '.$_SESSION['wwwroot'].' /var/tmp/ov_latest.tar.gz',NULL,$exitcode);
+		if($exitcode==0)
+		{
+			echo 'The software has been decompressed.';
+		} else {
+			echo 'Couldn\'t decompress the software. Please do it manually, then click &quot;Next&quot;.';
+		}
+		echo '<br><br><form action="'.$_SERVER['PHP_SELF'].'" method="get">
+		<input type="hidden" name="step" value="7">
+		<input type="submit" class="formstyle" value="Next">
+		</form>';
 	}
 }
 ?>
