@@ -275,7 +275,7 @@ class InstallerDebian
 		
 		echo 'Config saved.<br><br>';
 		
-		if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host'].' -u '.$_SESSION['mysql_user'].' -p'.$_SESSION['mysql_pwd'].' < '.$_SESSION['tempdir'].'database/tables.sql'))
+		if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host'].' -u '.$_SESSION['mysql_user'].' -p'.$_SESSION['mysql_pwd'].' < '.$_SESSION['tempdir'].'database/tables.sql')==0)
 		{
 			echo 'The MySQL database has been installed successfully';
 		} else {
