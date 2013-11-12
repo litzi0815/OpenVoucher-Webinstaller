@@ -141,6 +141,8 @@ class InstallerDebian
 		<li>The user running apache is allowed to run iptables without password using sudo</li>
 		</ul>
 		<br>
+		You can install missing software using the following command:<br><br>
+		<code>apt-get install apache2 php5 php5-mysql sudo mysql-server</code><br><br>
 		<form action="'.$_SERVER['PHP_SELF'].'" method="get">
 		<input type="hidden" name="step" value="3">
 		<input type="submit" class="formstyle" value="Next">
@@ -188,7 +190,8 @@ class InstallerDebian
 		Password: <input type="password" name="mysql_pwd" size="20" class="formstyle"><br>
 		Database: <input type="text" name="mysql_db" size="20" class="formstyle" value="openvoucher"><br><br>
 		<input type="submit" value="Next" class="formstyle">
-		</form>';
+		</form><br><br>
+		<b>If you have an existing database, create a backup <u>now</u>! Otherwise, the user accounts and issued vouchers will be lost!</b>';
 		$this->g->Footer();
 	}
 	
@@ -266,17 +269,15 @@ class InstallerDebian
 		define(\'INTERFACES_EXTERNAL\',\''.$_SESSION['if-external'].'\');
 		?>';
 		
-		//shell_exec('echo '.$configfile.' > '.$_SESSION['wwwroot'].'includes/config.php');
-		
 		$handle=fopen($_SESSION['wwwroot'].'includes/config.php','w');
 		fwrite($handle,$configfile);
 		fclose($handle);
 		
 		echo 'Config saved.<br><br>';
 		
-		if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host.'].' -u '.$_SESSION['mysql_user.'].' -p'.$_SESSION['mysql_pwd.'].' < '.$_SESSION['tempdir.'].'database/tables.sql'))
+		if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host'].' -u '.$_SESSION['mysql_user'].' -p'.$_SESSION['mysql_pwd'].' < '.$_SESSION['tempdir'].'database/tables.sql'))
 		{
-			echo 'The MySQL database has been installed successfully.';
+			echo 'The MySQL database has been installed successfully';
 		} else {
 			echo 'An error occured while installing the database. Please run database/tables.sql manually.';
 		}
@@ -299,6 +300,7 @@ class InstallerDebian
 				<li>Insert the cronjob(s) as described in cronjobs.txt</li>
 				<li>Do <b>not</b> run this cronjob(s) by root!</li>
 				<li>In &quot;'.$_SESSION['wwwroot'].'localscripts/refresh_permissions.sh&quot;, make sure the path used by cd is correct</li>
+				<li>Make sure that refresh_permissions.sh has the executable flag set.</li>
 			</ul>
 			<li>Enable Debian\'s routing functionality</li>
 			<ul>
