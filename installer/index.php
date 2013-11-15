@@ -14,6 +14,9 @@ if($_GET['installer']=='')
 	<option value="debian">Debian</option>
 	</select>
 	<br><br>
+	<input type="radio" name="inst_type" value="fresh" checked> Fresh installation 
+	<input type="radio" name="inst_type" value="update"> Update existing installation<br><br>
+	<b>When updating, do <u>always</u> backup your database first!</b><br><br>
 	<input type="submit" value="Next" class="formstyle">
 	</form>';
 	$g->Footer();
