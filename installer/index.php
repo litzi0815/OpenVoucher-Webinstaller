@@ -23,6 +23,6 @@ if($_GET['installer']=='')
 }
 if($_GET['installer']=='debian')
 {
-	header('Location: debian.php');
+	header('Location: debian.php?inst_type='.$_GET['inst_type']);
 }
 ?>

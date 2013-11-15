@@ -7,7 +7,7 @@ class InstallerDebian
 	
 	function __construct()
 	{
-		define('INSTALLERVERSION','0.2.0');
+		define('INSTALLERVERSION','0.2.1');
 		session_start();
 		$this->g = new gui(INSTALLERVERSION);
 		if(trim($_GET['step'])=='' || (!is_numeric($_GET['step']) && $_GET['step']!='reset'))
@@ -17,11 +17,13 @@ class InstallerDebian
 			$this->step=$_GET['step'];
 		}
 		
-		if($_GET['type']=='update')
+		if(!isset($_SESSION['update']))
+		{
+			$_SESSION['update']=false;
+		}
+		if($_GET['inst_type']=='update')
 		{
 			$_SESSION['update']=true;
-		} else {
-			$_SESSION['update']=false;
 		}
 		
 		if($this->step==1) $this->FormSysdata();
@@ -144,6 +146,7 @@ class InstallerDebian
 			if(!$this->CheckPost(array('apacheuser','iptables','arp','tempdir','wwwroot','if-internal','if-external','ip-internal','auth')))
 			{
 				echo 'Not all required fields were filled out.';
+				print_r($_SESSION);
 				$this->g->Footer();
 				die();
 			}
@@ -252,7 +255,6 @@ class InstallerDebian
 				die('Couldn\'t read the database information from your existing config file. Please check the permissions.');
 			}
 		}
-	}
 		
 		$this->g->Header();
 		shell_exec('wget -O '.$_SESSION['tempdir'].'ov_latest.tar.gz http://sourceforge.net/projects/openvoucher/files/latest/download?source=files > /dev/null 2>&1 &');
@@ -377,7 +379,7 @@ class InstallerDebian
 		} else {
 			echo 'The update is completed.';
 		}
-		echo '<br><br><b>Don\'t forget to delete the installer\'s directory or deny access to it - otherwise the installer could be run by anyone!</b>
+		echo '<br><br><b>Don\'t forget to delete the installer\'s directory or deny access to it - otherwise the installer could be run by anyone!</b>';
 		$this->g->Footer();
 	}
 }
