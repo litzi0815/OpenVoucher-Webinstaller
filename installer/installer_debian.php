@@ -231,7 +231,28 @@ class InstallerDebian
 				die();
 			}
 		$this->WritePostToSession(array('mysql_host','mysql_user','mysql_pwd','mysql_db'));
+		} else {
+			if($buffer=file_get_contents($_SESSION['wwwroot'].'includes/config.php'))
+			{
+				$buffer1=explode('MYSQL_HOST',$buffer);
+				$buffer2=explode("');",$buffer1[1]);
+				$_SESSION['mysql_host']=str_replace("','",$buffer2[0]);
+				$buffer1=explode('MYSQL_USER',$buffer);
+				$buffer2=explode("');",$buffer1[1]);
+				$_SESSION['mysql_user']=str_replace("','",$buffer2[0]);
+				$buffer1=explode('MYSQL_PWD',$buffer);
+				$buffer2=explode("');",$buffer1[1]);
+				$_SESSION['mysql_pwd']=str_replace("','",$buffer2[0]);
+				$buffer1=explode('MYSQL_DB',$buffer);
+				$buffer2=explode("');",$buffer1[1]);
+				$_SESSION['mysql_db']=str_replace("','",$buffer2[0]);
+			}
+			else
+			{
+				die('Couldn\'t read the database information from your existing config file. Please check the permissions.');
+			}
 		}
+	}
 		
 		$this->g->Header();
 		shell_exec('wget -O '.$_SESSION['tempdir'].'ov_latest.tar.gz http://sourceforge.net/projects/openvoucher/files/latest/download?source=files > /dev/null 2>&1 &');
@@ -281,33 +302,48 @@ class InstallerDebian
 	{
 		$this->g->Header();
 		
-		$configfile='<?php
-		define(\'MYSQL_HOST\',\''.$_SESSION['mysql_host'].'\');
-		define(\'MYSQL_USER\',\''.$_SESSION['mysql_user'].'\');
-		define(\'MYSQL_PWD\',\''.$_SESSION['mysql_pwd'].'\');
-		define(\'MYSQL_DB\',\'openvoucher\');
-
-		define(\'SYSTEM_IPTABLES\',\''.$_SESSION['iptables'].'\');
-		define(\'SYSTEM_ARP\',\''.$_SESSION['arp'].'\');
-		define(\'SYSTEM_TMPDIR\',\''.$_SESSION['tempdir'].'\');
-		define(\'SYSTEM_AUTHENTICATION\',\''.$_SESSION['auth'].'\');
-
-		define(\'INTERFACES_INTERNAL\',\''.$_SESSION['if-internal'].'\');
-		define(\'INTERFACES_INTERNAL_IP\',\''.$_SESSION['ip-internal'].'\');
-		define(\'INTERFACES_EXTERNAL\',\''.$_SESSION['if-external'].'\');
-		?>';
-		
-		$handle=fopen($_SESSION['wwwroot'].'includes/config.php','w');
-		fwrite($handle,$configfile);
-		fclose($handle);
-		
-		echo 'Config saved.<br><br>';
-		
-		if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host'].' -u '.$_SESSION['mysql_user'].' -p'.$_SESSION['mysql_pwd'].' < '.$_SESSION['tempdir'].'database/tables.sql')==0)
+		if(!$_SESSION['update'])
 		{
-			echo 'The MySQL database has been installed successfully';
+			$configfile='<?php
+			define(\'MYSQL_HOST\',\''.$_SESSION['mysql_host'].'\');
+			define(\'MYSQL_USER\',\''.$_SESSION['mysql_user'].'\');
+			define(\'MYSQL_PWD\',\''.$_SESSION['mysql_pwd'].'\');
+			define(\'MYSQL_DB\',\'openvoucher\');
+
+			define(\'SYSTEM_IPTABLES\',\''.$_SESSION['iptables'].'\');
+			define(\'SYSTEM_ARP\',\''.$_SESSION['arp'].'\');
+			define(\'SYSTEM_TMPDIR\',\''.$_SESSION['tempdir'].'\');
+			define(\'SYSTEM_AUTHENTICATION\',\''.$_SESSION['auth'].'\');
+
+			define(\'INTERFACES_INTERNAL\',\''.$_SESSION['if-internal'].'\');
+			define(\'INTERFACES_INTERNAL_IP\',\''.$_SESSION['ip-internal'].'\');
+			define(\'INTERFACES_EXTERNAL\',\''.$_SESSION['if-external'].'\');
+			?>';
+		
+			$handle=fopen($_SESSION['wwwroot'].'includes/config.php','w');
+			fwrite($handle,$configfile);
+			fclose($handle);
+		
+			echo 'Config saved.<br><br>';
+		
+			if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host'].' -u '.$_SESSION['mysql_user'].' -p'.$_SESSION['mysql_pwd'].' < '.$_SESSION['tempdir'].'database/tables.sql')==0)
+			{
+				echo 'The MySQL database has been installed successfully';
+			} else {
+				echo 'An error occured while installing the database. Please run database/tables.sql manually.';
+			}
 		} else {
-			echo 'An error occured while installing the database. Please run database/tables.sql manually.';
+			if(file_exists($_SESSION['tempdir'].'database/upgrade.sql'))
+			{
+				if($this->GetExitCode('mysql -h '.$_SESSION['mysql_host'].' -u '.$_SESSION['mysql_user'].' -p'.$_SESSION['mysql_pwd'].' < '.$_SESSION['tempdir'].'database/upgrade.sql')==0)
+				{
+					echo 'The MySQL database has been upgraded successfully';
+				} else {
+					echo 'An error occured while upgrading the database. Please run database/upgrade.sql manually.';
+				}
+			} else {
+				echo 'A database upgrade is not needed for this version.';
+			}
 		}
 		echo '<br><br><form action="'.$_SERVER['PHP_SELF'].'" method="get">
 		<input type="hidden" name="step" value="8">
@@ -319,23 +355,29 @@ class InstallerDebian
 	private function Finished()
 	{
 		$this->g->Header();
-		echo 'The installation is finished. However, there are still some tasks that require root privileges or manual configuration. Please complete the following steps:
-		<br>
-		<ul>
-			<li>Install the cronjob(s) described in '.$_SESSION['tempdir'].'cronjobs/cronjobs.txt</li>
+		if(!$_SESSION['update'])
+		{
+			echo 'The installation is finished. However, there are still some tasks that require root privileges or manual configuration. Please complete the following steps:
+			<br>
 			<ul>
-				<li>On the shell, change to user '.$_SESSION['apacheuser'].' and run &quot;crontab -e&quot;</li>
-				<li>Insert the cronjob(s) as described in cronjobs.txt</li>
-				<li>Do <b>not</b> run this cronjob(s) by root!</li>
-				<li>In &quot;'.$_SESSION['wwwroot'].'localscripts/refresh_permissions.sh&quot;, make sure the path used by cd is correct</li>
-				<li>Make sure that refresh_permissions.sh has the executable flag set.</li>
-			</ul>
-			<li>Enable Debian\'s routing functionality</li>
-			<ul>
-				<li>Open the file &quot;/etc/sysctl.conf&quot; and uncomment the line &quot;net.ipv4.ip_forward=1&quot;</li>
-			</ul>
-			<li>Reboot the server</li>
-		</ul>';
+				<li>Install the cronjob(s) described in '.$_SESSION['tempdir'].'cronjobs/cronjobs.txt</li>
+				<ul>
+					<li>On the shell, change to user '.$_SESSION['apacheuser'].' and run &quot;crontab -e&quot;</li>
+					<li>Insert the cronjob(s) as described in cronjobs.txt</li>
+					<li>Do <b>not</b> run this cronjob(s) by root!</li>
+					<li>In &quot;'.$_SESSION['wwwroot'].'localscripts/refresh_permissions.sh&quot;, make sure the path used by cd is correct</li>
+					<li>Make sure that refresh_permissions.sh has the executable flag set.</li>
+				</ul>
+				<li>Enable Debian\'s routing functionality</li>
+				<ul>
+					<li>Open the file &quot;/etc/sysctl.conf&quot; and uncomment the line &quot;net.ipv4.ip_forward=1&quot;</li>
+				</ul>
+				<li>Reboot the server</li>
+			</ul>';
+		} else {
+			echo 'The update is completed.';
+		}
+		echo '<br><br><b>Don\'t forget to delete the installer\'s directory or deny access to it - otherwise the installer could be run by anyone!</b>
 		$this->g->Footer();
 	}
 }
