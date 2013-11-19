@@ -63,6 +63,46 @@ class InstallerDebian
 		return $checkres;
 	}
 	
+	private function GetRequiredVersion()
+	{
+		return file_get_contents('http://www.openvoucher.org/ov-data/required.txt');
+	}
+	
+	private function GetInstalledVersion()
+	{
+		$versionfile=$_SESSION['wwwroot'].'classes/versionmanager.php';
+		if(!file_exists($versionfile))
+		{
+			return false;
+		}
+		$buffer=file_get_contents($versionfile);
+		$buffer1=explode('CURRENTVER',$buffer);
+		$buffer2=explode("');",$buffer1[1]);
+		$version=str_replace("','",'',$buffer2[0]);
+		return $version;
+	}
+	
+	private function RequiredInstalled()
+	{
+		if(!$required=explode('.',$this->GetRequiredVersion()) || !$installed=explode('.',$this->GetInstalledVersion()))
+		{
+			return false;
+		}
+		
+		if($required[0]>$installed[0]) // Major
+		{
+			return true;
+		} elseif($required[1]>$installed[1]) // Minor
+		{
+			return true;
+		} elseif($required[2]>$installed[2]) // Revision
+		{
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
 	private function GetExitCode($command)
 	{
 		exec($command,$buffer,$exitcode);
