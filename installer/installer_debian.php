@@ -4,6 +4,7 @@ class InstallerDebian
 {
 	private $step;
 	private $g;
+	private $required;
 	
 	function __construct()
 	{
@@ -65,7 +66,8 @@ class InstallerDebian
 	
 	private function GetRequiredVersion()
 	{
-		return file_get_contents('http://www.openvoucher.org/ov-data/required.txt');
+		$this->required=file_get_contents('http://www.openvoucher.org/ov-data/required.txt');
+		return $this->required;
 	}
 	
 	private function GetInstalledVersion()
@@ -179,6 +181,14 @@ class InstallerDebian
 				$this->g->Footer();
 				die();
 			}
+			if(!$this->RequiredInstalled())
+			{
+				echo 'You don\'t have the minimal required version installed. The minimal required version is '.$this->required.'<br><br>
+				Please go to openvoucher.org and learn how to install manually.';
+				$this->g->Footer();
+				die();
+			}
+			
 			$this->WritePostToSession(array('tempdir','wwwroot'));
 			$this->SaveMySQLStartDownload();
 		} else {
